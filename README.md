@@ -3,7 +3,7 @@ Food-Track App with Claude.ai
 # 🥗 Food Diet Tracker
 
 A simple, interactive food diary application built for Google Colab that helps you track your meals and monitor your calorie intake using IPython widgets and interactive visualizations.
-
+ 
 ## ✨ Features
 
 - Log food items with calories for different meal types (Breakfast, Lunch, Dinner, Snacks)
