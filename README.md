@@ -1,4 +1,4 @@
-# Food-Track-Website
+# Track your Diet
 Food-Track App with Claude.ai
 # 🥗 Food Diet Tracker
 
