@@ -1,1 +1,516 @@
  #Code for Food Website 
+# Food Diet Tracker for Google Colab
+# This implementation uses IPython widgets for interactivity and HTML/CSS for styling
+
+# First, install and import necessary libraries
+!pip install ipywidgets plotly -q
+from IPython.display import display, HTML, clear_output
+import ipywidgets as widgets
+import json
+import datetime
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import random
+import numpy as np
+
+# Define motivational messages and emojis
+MOTIVATIONAL_MESSAGES = [
+    "Great job tracking your meals! 🌟",
+    "Consistency is key to success! 💪",
+    "You're making healthy choices! 🥗",
+    "Keep it up! Every meal logged is progress! 🚀",
+    "You've got this! Small changes lead to big results! ✨",
+    "Stay focused on your health goals! 🎯",
+    "Proud of you for taking control of your diet! 👏",
+    "Healthy eating is self-care! ❤️",
+    "You're building great habits! 🌱",
+    "Nourish your body, nourish your mind! 🧠"
+]
+
+# Define color palettes for UI
+COLORS = {
+    'primary': '#4361ee',
+    'secondary': '#3f37c9',
+    'success': '#4cc9f0',
+    'danger': '#f72585',
+    'warning': '#f8961e',
+    'info': '#90e0ef',
+    'light': '#f8f9fa',
+    'dark': '#212529',
+    'breakfast': '#ffadad',
+    'lunch': '#ffd6a5',
+    'dinner': '#fdffb6',
+    'snack': '#caffbf'
+}
+
+# CSS styling for the app
+style = f"""
+<style>
+    .app-container {{
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }}
+    .app-header {{
+        background: linear-gradient(135deg, {COLORS['primary']}, {COLORS['secondary']});
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }}
+    .app-title {{
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }}
+    .app-subtitle {{
+        font-size: 16px;
+        opacity: 0.8;
+    }}
+    .form-container {{
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+
+    }}
+    .form-title {{
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: {COLORS['dark']};
+    }}
+    .summary-container {{
+        background-color: {COLORS['info']};
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }}
+    .meal-container {{
+        background-color: white;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }}
+    .meal-header {{
+        padding: 10px 15px;
+        font-weight: bold;
+        color: {COLORS['dark']};
+        display: flex;
+        justify-content: space-between;
+    }}
+    .meal-header.breakfast {{ background-color: {COLORS['breakfast']}; }}
+    .meal-header.lunch {{ background-color: {COLORS['lunch']}; }}
+    .meal-header.dinner {{ background-color: {COLORS['dinner']}; }}
+    .meal-header.snack {{ background-color: {COLORS['snack']}; }}
+    .meal-item {{
+        padding: 10px 15px;
+        border-top: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }}
+    .meal-name {{
+        font-weight: 500;
+    }}
+    .meal-calories {{
+        color: {COLORS['dark']};
+        font-size: 14px;
+    }}
+    .delete-btn {{
+        color: {COLORS['danger']};
+        cursor: pointer;
+        font-weight: bold;
+    }}
+    .motivational-msg {{
+        background: linear-gradient(135deg, {COLORS['info']}, {COLORS['success']});
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: {COLORS['dark']};
+    }}
+    .no-meals {{
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+        font-style: italic;
+    }}
+    .progress-container {{
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }}
+</style>
+"""
+
+class FoodDietTracker:
+    def __init__(self):
+        self.meals = []
+        self.load_data()
+        self.create_widgets()
+        self.layout_app()
+
+    def load_data(self):
+        try:
+            # Try to load data from a JSON file in Colab
+            with open('food_tracker_data.json', 'r') as f:
+                self.meals = json.load(f)
+        except:
+            # If file doesn't exist, start with empty meals list
+            self.meals = []
+
+    def save_data(self):
+        # Save data to a JSON file
+        with open('food_tracker_data.json', 'w') as f:
+            json.dump(self.meals, f)
+
+    def create_widgets(self):
+        # Date picker
+        self.date_picker = widgets.DatePicker(
+            description='Date:',
+            value=datetime.datetime.now().date(),
+            disabled=False
+        )
+
+        # Food name input
+        self.food_name = widgets.Text(
+            description='Food:',
+            placeholder='e.g., Apple, Chicken Salad',
+            disabled=False
+        )
+
+        # Calories input
+        self.calories = widgets.IntText(
+            description='Calories:',
+            placeholder='e.g., 250',
+            min=0,
+            disabled=False
+        )
+
+        # Meal type dropdown
+        self.meal_type = widgets.Dropdown(
+            options=[('Breakfast', 'breakfast'), ('Lunch', 'lunch'),
+                    ('Dinner', 'dinner'), ('Snack', 'snack')],
+            value='breakfast',
+            description='Meal:',
+            disabled=False,
+        )
+
+        # Add food button
+        self.add_button = widgets.Button(
+            description='Add Food',
+            disabled=False,
+            button_style='primary',
+            tooltip='Click to add food',
+            icon='plus'
+        )
+        self.add_button.on_click(self.add_food)
+
+        # Show stats button
+        self.stats_button = widgets.Button(
+            description='Show Statistics',
+            disabled=False,
+            button_style='info',
+            tooltip='Click to view stats',
+            icon='chart-line'
+        )
+        self.stats_button.on_click(self.show_stats)
+
+    def layout_app(self):
+        # Display the app header and styles
+        display(HTML(style + """
+        <div class="app-container">
+            <div class="app-header">
+                <div class="app-title">✨ Food Diet Tracker ✨</div>
+                <div class="app-subtitle">Track your meals to achieve your health goals!</div>
+            </div>
+        </div>
+        """))
+
+        # Display the form in a horizontal layout
+        form_items = [self.food_name, self.calories, self.meal_type, self.date_picker]
+        form = widgets.VBox([
+            widgets.HBox(form_items),
+            widgets.HBox([self.add_button, self.stats_button])
+        ])
+
+        form_container = widgets.Output()
+        with form_container:
+            display(HTML('<div class="form-container"><div class="form-title">Add Your choice of Food</div></div>'))
+            display(form)
+
+        display(form_container)
+
+        # Output area for displaying meals and stats
+        self.output = widgets.Output()
+        display(self.output)
+
+        # Initial rendering
+        self.render_meals()
+
+    def add_food(self, b):
+        if not self.food_name.value or self.calories.value <= 0:
+            with self.output:
+                clear_output()
+                display(HTML(f"""
+                <div style="color: {COLORS['danger']}; padding: 10px; text-align: center;">
+                    Please enter both food name and calories!
+                </div>
+                """))
+                self.render_meals()
+            return
+
+        # Create new meal entry
+        new_meal = {
+            'id': str(datetime.datetime.now().timestamp()),
+            'date': self.date_picker.value.isoformat(),
+            'foodName': self.food_name.value,
+            'calories': self.calories.value,
+            'mealType': self.meal_type.value
+        }
+
+        # Add to meals list
+        self.meals.append(new_meal)
+
+        # Save data
+        self.save_data()
+
+        # Clear form
+        self.food_name.value = ''
+        self.calories.value = 0
+
+        # Update display
+        self.render_meals()
+
+    def delete_meal(self, meal_id):
+        # Remove meal with given ID
+        self.meals = [meal for meal in self.meals if meal['id'] != meal_id]
+
+        # Save data
+        self.save_data()
+
+        # Update display
+        self.render_meals()
+
+    def render_meals(self):
+        with self.output:
+            clear_output()
+
+            # Convert date string to date object for comparison
+            selected_date = self.date_picker.value.isoformat()
+
+            # Filter meals for selected date
+            todays_meals = [meal for meal in self.meals if meal['date'] == selected_date]
+
+            # Display motivational message
+            motivational_msg = random.choice(MOTIVATIONAL_MESSAGES)
+            display(HTML(f"""
+            <div class="app-container">
+                <div class="motivational-msg">
+                    {motivational_msg}
+                </div>
+            </div>
+            """))
+
+            # Display daily summary
+            total_calories = sum(meal['calories'] for meal in todays_meals)
+            display(HTML(f"""
+            <div class="app-container">
+                <div class="summary-container">
+                    <div>
+                        <div style="font-size: 18px; font-weight: bold;">Today's Total</div>
+                        <div style="font-size: 24px; font-weight: bold;">{total_calories} calories</div>
+                    </div>
+                    <div>
+                        <div style="text-align: right;">{len(todays_meals)} items logged</div>
+                        <div style="text-align: right; font-size: 14px; color: #666;">
+                            {self.date_picker.value.strftime('%A, %B %d, %Y')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """))
+
+            # Group meals by type
+            breakfast = [meal for meal in todays_meals if meal['mealType'] == 'breakfast']
+            lunch = [meal for meal in todays_meals if meal['mealType'] == 'lunch']
+            dinner = [meal for meal in todays_meals if meal['mealType'] == 'dinner']
+            snacks = [meal for meal in todays_meals if meal['mealType'] == 'snack']
+
+            html_content = '<div class="app-container">'
+
+            # Render each meal type
+            if breakfast:
+                html_content += self.render_meal_section("Breakfast", breakfast, "breakfast")
+            if lunch:
+                html_content += self.render_meal_section("Lunch", lunch, "lunch")
+            if dinner:
+                html_content += self.render_meal_section("Dinner", dinner, "dinner")
+            if snacks:
+                html_content += self.render_meal_section("Snacks", snacks, "snack")
+
+            if not todays_meals:
+                html_content += """
+                <div class="no-meals">
+                    No meals logged for this date. Add your first meal above!
+                </div>
+                """
+
+            html_content += '</div>'
+            display(HTML(html_content))
+
+    def render_meal_section(self, title, meals, meal_type):
+        total_calories = sum(meal['calories'] for meal in meals)
+
+        html = f"""
+        <div class="meal-container">
+            <div class="meal-header {meal_type}">
+                <div>{title}</div>
+                <div>{total_calories} calories</div>
+            </div>
+        """
+
+        for meal in meals:
+            html += f"""
+            <div class="meal-item">
+                <div>
+                    <div class="meal-name">{meal['foodName']}</div>
+                    <div class="meal-calories">{meal['calories']} calories</div>
+                </div>
+                <div class="delete-btn" onclick="
+                    IPython.notebook.kernel.execute('app.delete_meal(\"{meal['id']}\")');
+                ">×</div>
+            </div>
+            """
+
+        html += '</div>'
+        return html
+
+    def show_stats(self, b):
+        with self.output:
+            clear_output()
+
+            if not self.meals:
+                display(HTML("""
+                <div class="app-container">
+                    <div style="text-align: center; padding: 20px;">
+                        No meal data available yet. Start tracking to see statistics!
+                    </div>
+                    <button onclick="IPython.notebook.kernel.execute('app.render_meals()')">
+                        Back to Tracker
+                    </button>
+                </div>
+                """))
+                return
+
+            # Convert to DataFrame for analysis
+            df = pd.DataFrame(self.meals)
+            df['date'] = pd.to_datetime(df['date'])
+
+            # Create weekly summary
+            today = datetime.datetime.now().date()
+            week_ago = today - datetime.timedelta(days=6)
+            df_week = df[df['date'] >= pd.Timestamp(week_ago)]
+
+            # Daily calories for past week
+            daily_calories = df_week.groupby(df_week['date'].dt.date)['calories'].sum().reset_index()
+
+            # Calculate basic stats
+            avg_daily_calories = daily_calories['calories'].mean() if not daily_calories.empty else 0
+
+            # Create bar chart
+            if not daily_calories.empty:
+                fig1 = px.bar(
+                    daily_calories,
+                    x='date',
+                    y='calories',
+                    title='Calories per Day (Last 7 Days)',
+                    color_discrete_sequence=[COLORS['primary']],
+                    labels={'date': 'Date', 'calories': 'Total Calories'}
+                )
+                fig1.update_layout(height=400)
+
+                # Create meal type breakdown
+                meal_type_data = df_week.groupby('mealType')['calories'].sum().reset_index()
+
+                # Map colors for meal types
+                color_map = {
+                    'breakfast': COLORS['breakfast'],
+                    'lunch': COLORS['lunch'],
+                    'dinner': COLORS['dinner'],
+                    'snack': COLORS['snack']
+                }
+
+                # Create pie chart of meal type distribution
+                fig2 = px.pie(
+                    meal_type_data,
+                    values='calories',
+                    names='mealType',
+                    title='Calorie Distribution by Meal Type',
+                    color='mealType',
+                    color_discrete_map=color_map
+                )
+                fig2.update_layout(height=400)
+
+                # Display stats summary
+                display(HTML(f"""
+                <div class="app-container">
+                    <div class="app-header">
+                        <div class="app-title">Your Nutrition Statistics</div>
+                        <div class="app-subtitle">Insights from your tracked meals</div>
+                    </div>
+
+                    <div class="summary-container">
+                        <div style="text-align: center; width: 100%;">
+                            <div style="font-size: 16px;">Average Daily Calories</div>
+                            <div style="font-size: 28px; font-weight: bold;">{int(avg_daily_calories)}</div>
+                        </div>
+                    </div>
+                </div>
+                """))
+
+                # Display charts
+                display(fig1)
+                display(fig2)
+            else:
+                display(HTML("""
+                <div class="app-container">
+                    <div style="text-align: center; padding: 20px;">
+                        Not enough data for the past week to show statistics.
+                    </div>
+                </div>
+                """))
+
+            # Back button
+            display(HTML("""
+            <div style="text-align: center; margin-top: 20px;">
+                <button
+                    style="background-color: #4361ee; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;"
+                    onclick="IPython.notebook.kernel.execute('app.render_meals()')">
+                    Back to Tracker
+                </button>
+            </div>
+            """))
+
+# Initialize and run the app
+app = FoodDietTracker()
+
+# Instructions for running the app
+print("✅ Food Diet Tracker is running!")
+print("➡️ Use the form above to log your meals")
+print("➡️ Click 'Show Statistics' to see your progress visualizations")
+print("➡️ Your data is saved automatically")
